@@ -1,0 +1,60 @@
+---
+#
+# Name: Setup Postgres Database
+# Desc: Install and Initialize Empty Postgres Database
+# Author: Brannon Fay
+#
+- hosts: localhost
+  connection: local
+  vars:
+    ps_ver: "12"
+  tasks:
+    - name: "Install Postgres"
+      apt:
+        name: postgresql
+        update_cache: yes
+        
+    - name: "Install Postgres Contrib Package"
+      apt:
+        name: postgresql-contrib
+
+    - name: "Verify Install"
+      command: 'psql -c "SELECT version();"'
+      become: true
+      become_user: postgres
+      become_method: sudo
+      register: result
+      failed_when: result.rc > 0
+
+    - debug:
+        msg: "Postgres Version returned as [{{ result.stdout }}]"
+
+    - name: "Enable Remote Access to Postgres Server"
+      lineinfile:
+        path: /etc/postgresql/{{ ps_ver }}/main/postgresql.conf
+        firstmatch: yes
+        insertafter: '^# - Connection Settings -'
+        line: "listen_addresses = '*'     # what IP address(es) to listen on;"
+      
+    - name: "Restart Postgres Service to Pick Up Conf File Change"
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: "Verify the changes took hold"
+      shell: 'ss -nlt | grep 5432'
+      register: ss_result
+
+    - name: "Output to Verify PostgreSQL Server is listening on all interfaces (0.0.0.0)"
+      debug:
+        msg: ss_result.stdout
+
+    - name: "Configure the server to allow remote connections"
+      blockinfile:
+        path: /etc/postgresql/{{ ps_ver }}/main/pg_hba.conf
+        create: yes
+        block: |
+          '# The user jane can access all databases from all locations using md5 password'
+          host  all * 0.0.0.0/0 md5
+
+    # If using firewall: ufw allow proto tcp from 192.168.1.0/24 to any port 5432
