@@ -1,0 +1,18 @@
+---
+#
+# Name: Stop Postgres
+# Author: Brannon Fay
+# Description: Stop the postgres server
+#
+# TODO: Convert this to tasks/roles for each action
+- name: "Stop Postgres Service"
+  hosts: localhost
+  connection: local
+  vars:
+    pg_ver: "12"
+  tasks:
+    - name: "Stop PostgreSQL Service"
+      service:
+        name: postgresql
+        state: stopped
+# start, status, disable, enable
